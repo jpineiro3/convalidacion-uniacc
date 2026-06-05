@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Convalidación — UNIACC Psicología</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue-dark: #042C53; --blue-mid: #185FA5; --blue-light: #E6F1FB; --blue-text: #0C447C;
+  --green-dark: #173404; --green-mid: #3B6D11; --green-light: #EAF3DE; --green-text: #27500A;
+  --amber-dark: #412402; --amber-mid: #BA7517; --amber-light: #FAEEDA; --amber-text: #633806;
+  --red-dark: #501313; --red-mid: #A32D2D; --red-light: #FCEBEB; --red-text: #791F1F;
+  --gray-bg: #F8F7F4; --gray-border: #D3D1C7; --gray-text: #5F5E5A; --gray-light: #F1EFE8;
+  --white: #ffffff; --text: #1a1a1a; --radius: 8px; --radius-lg: 12px;
+}
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--gray-bg); color: var(--text); font-size: 14px; line-height: 1.5; }
+
+/* LAYOUT */
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+.sidebar { background: var(--blue-dark); color: #B5D4F4; padding: 0; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.sidebar-logo { padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sidebar-logo h1 { font-size: 15px; font-weight: 600; color: white; line-height: 1.3; }
+.sidebar-logo p { font-size: 11px; color: #85B7EB; margin-top: 2px; }
+.sidebar-nav { padding: 12px 0; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 18px; font-size: 13px; cursor: pointer; color: #85B7EB; transition: all .15s; border-left: 3px solid transparent; }
+.nav-item:hover { background: rgba(255,255,255,0.07); color: white; }
+.nav-item.active { background: rgba(255,255,255,0.1); color: white; border-left-color: #85B7EB; }
+.nav-item .ico { font-size: 16px; width: 18px; text-align: center; }
+.nav-badge { margin-left: auto; background: var(--blue-mid); color: white; font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+.sidebar-footer { padding: 14px 18px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 11px; color: #85B7EB; }
+
+.main { padding: 28px 32px; overflow-y: auto; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* COMPONENTS */
+.page-header { margin-bottom: 24px; }
+.page-header h2 { font-size: 20px; font-weight: 600; color: var(--text); }
+.page-header p { font-size: 13px; color: var(--gray-text); margin-top: 4px; }
+
+.card { background: var(--white); border: 1px solid var(--gray-border); border-radius: var(--radius-lg); padding: 20px 22px; margin-bottom: 16px; }
+.card-title { font-size: 13px; font-weight: 600; color: var(--gray-text); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: .4px; }
+.step-num { background: var(--blue-light); color: var(--blue-text); font-size: 11px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label { font-size: 12px; font-weight: 500; color: var(--gray-text); }
+.form-group input, .form-group select { padding: 8px 11px; border: 1px solid var(--gray-border); border-radius: var(--radius); font-size: 13px; color: var(--text); background: white; transition: border-color .15s; }
+.form-group input:focus, .form-group select:focus { outline: none; border-color: var(--blue-mid); }
+.form-group input[readonly] { background: var(--gray-light); color: var(--gray-text); }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius); border: 1px solid var(--gray-border); cursor: pointer; font-size: 13px; font-weight: 500; background: white; color: var(--text); transition: all .15s; text-decoration: none; }
+.btn:hover { background: var(--gray-light); }
+.btn-primary { background: var(--blue-dark); color: white; border-color: var(--blue-dark); }
+.btn-primary:hover { background: var(--blue-mid); border-color: var(--blue-mid); }
+.btn-success { background: var(--green-dark); color: white; border-color: var(--green-dark); }
+.btn-success:hover { background: var(--green-mid); }
+.btn-danger { background: var(--red-light); color: var(--red-text); border-color: #F7C1C1; }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+.alert { padding: 10px 14px; border-radius: var(--radius); font-size: 13px; margin-bottom: 14px; display: flex; align-items: flex-start; gap: 8px; }
+.alert-info { background: var(--blue-light); color: var(--blue-text); border: 1px solid #B5D4F4; }
+.alert-success { background: var(--green-light); color: var(--green-text); border: 1px solid #C0DD97; }
+.alert-warning { background: var(--amber-light); color: var(--amber-text); border: 1px solid #FAC775; }
+.alert-error { background: var(--red-light); color: var(--red-text); border: 1px solid #F7C1C1; }
+
+/* UPLOAD */
+.upload-zone { border: 2px dashed var(--gray-border); border-radius: var(--radius-lg); padding: 28px 20px; text-align: center; cursor: pointer; transition: all .2s; }
+.upload-zone:hover, .upload-zone.drag { border-color: var(--blue-mid); background: var(--blue-light); }
+.upload-zone .ico-big { font-size: 36px; display: block; margin-bottom: 8px; }
+.upload-zone p { font-size: 14px; color: var(--text); font-weight: 500; }
+.upload-zone small { font-size: 12px; color: var(--gray-text); }
+.file-pill { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--gray-light); border: 1px solid var(--gray-border); border-radius: 20px; font-size: 12px; }
+
+/* CARPETA */
+.carpeta-row { display: flex; gap: 10px; align-items: flex-end; }
+.carpeta-row .form-group { flex: 1; }
+.folder-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; max-height: 120px; overflow-y: auto; }
+
+/* TABLE */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 9px 10px; font-size: 11px; font-weight: 600; color: var(--gray-text); border-bottom: 2px solid var(--gray-border); background: var(--gray-light); text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--gray-light); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #FAFAF8; }
+.editable { border: 1px solid transparent; border-radius: 4px; padding: 3px 6px; font-size: 12px; width: 100%; background: transparent; color: var(--text); transition: border-color .15s; }
+.editable:hover { border-color: var(--gray-border); }
+.editable:focus { outline: none; border-color: var(--blue-mid); background: white; }
+.nota-input { width: 56px; padding: 3px 6px; font-size: 13px; text-align: center; border: 1px solid var(--gray-border); border-radius: 4px; background: white; }
+
+/* BADGES */
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; white-space: nowrap; }
+.badge-cv { background: var(--blue-light); color: var(--blue-text); }
+.badge-ok { background: var(--green-light); color: var(--green-text); }
+.badge-warn { background: var(--amber-light); color: var(--amber-text); }
+.badge-fail { background: var(--red-light); color: var(--red-text); }
+.badge-hist { background: #EEEDFE; color: #3C3489; }
+.badge-pdf { background: var(--green-light); color: var(--green-text); }
+.badge-name { background: var(--amber-light); color: var(--amber-text); }
+
+/* PROGRESS */
+.pct-bar { display: inline-flex; align-items: center; gap: 6px; }
+.pct-track { background: var(--gray-light); border-radius: 20px; height: 6px; width: 56px; overflow: hidden; }
+.pct-fill { height: 100%; border-radius: 20px; transition: width .3s; }
+.pct-ok .pct-fill { background: var(--green-mid); }
+.pct-warn .pct-fill { background: var(--amber-mid); }
+.pct-fail .pct-fill { background: var(--red-mid); }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+.stat-card { background: white; border: 1px solid var(--gray-border); border-radius: var(--radius-lg); padding: 16px 18px; }
+.stat-card .n { font-size: 28px; font-weight: 700; color: var(--text); line-height: 1; }
+.stat-card .l { font-size: 12px; color: var(--gray-text); margin-top: 4px; }
+
+/* SPINNER */
+.spinner { width: 16px; height: 16px; border: 2px solid var(--gray-border); border-top-color: var(--blue-mid); border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: var(--gray-text); font-size: 13px; }
+
+/* ACTA PRINT */
+.acta-container { background: white; border: 1px solid var(--gray-border); border-radius: var(--radius-lg); padding: 28px; }
+#actaHtml { font-family: 'Arial', sans-serif; font-size: 11px; }
+#actaHtml .acta-header { text-align: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid #042C53; }
+#actaHtml .acta-header h2 { font-size: 14px; font-weight: 700; color: #042C53; }
+#actaHtml .acta-header p { font-size: 10px; color: #5F5E5A; }
+#actaHtml .acta-datos { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-bottom: 14px; font-size: 11px; }
+#actaHtml .acta-dato span { color: #5F5E5A; }
+#actaHtml .acta-tables { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+#actaHtml table { width: 100%; border-collapse: collapse; font-size: 10px; }
+#actaHtml th { background: #E6F1FB; color: #042C53; padding: 4px 6px; border: 1px solid #B5D4F4; font-size: 9px; text-align: left; }
+#actaHtml td { padding: 3px 6px; border: 1px solid #D3D1C7; }
+#actaHtml .acta-firma { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #D3D1C7; }
+#actaHtml .firma-line { border-bottom: 1px solid #1a1a1a; padding-bottom: 18px; margin-bottom: 4px; }
+#actaHtml .acta-obs { font-size: 10px; background: #F8F7F4; padding: 8px; border-radius: 4px; margin-top: 10px; }
+#actaHtml .acta-consideraciones { font-size: 9px; color: #5F5E5A; margin-top: 8px; line-height: 1.5; }
+
+@media print {
+  .sidebar, .main > .page-header, .card-title, .btn, .actions { display: none !important; }
+  body { background: white; }
+  .app { display: block; }
+  .main { padding: 0; }
+  .acta-container { border: none; padding: 0; box-shadow: none; }
+}
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.progress-list { display: flex; flex-direction: column; gap: 6px; }
+.progress-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--gray-light); border-radius: var(--radius); font-size: 12px; }
+.progress-item .asig-name { flex: 1; color: var(--text); }
+.progress-item .status-ico { font-size: 14px; }
+.divider { height: 1px; background: var(--gray-border); margin: 16px 0; }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--gray-text); }
+.empty-state .ico { font-size: 40px; display: block; margin-bottom: 10px; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.proveedor-card { border: 2px solid var(--gray-border); border-radius: var(--radius-lg); padding: 14px 16px; cursor: pointer; transition: all .15s; background: white; }
+.proveedor-card:hover { border-color: var(--blue-mid); }
+.proveedor-card.selected { border-color: var(--blue-mid); background: var(--blue-light); }
+.prov-logo { width: 36px; height: 36px; border-radius: var(--radius); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+.prov-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.prov-desc { font-size: 11px; color: var(--gray-text); margin-bottom: 4px; line-height: 1.4; }
+.prov-precio { font-size: 11px; color: var(--green-text); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <h1>Convalidación<br>de Estudios</h1>
+      <p>UNIACC · Escuela de Psicología</p>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="goPage('p1')">
+        <span class="ico">📋</span> Etapa 1 — Certificado
+      </div>
+      <div class="nav-item" onclick="goPage('p2')">
+        <span class="ico">📚</span> Etapa 2 — Contraste
+      </div>
+      <div class="nav-item" onclick="goPage('p3')">
+        <span class="ico">📄</span> Acta de Validación
+      </div>
+      <div class="nav-item" onclick="goPage('p4'); cargarHistorico()">
+        <span class="ico">🗂</span> Histórico <span class="nav-badge" id="badgeHist">0</span>
+      </div>
+      <div class="nav-item" onclick="goPage('p5')">
+        <span class="ico">⚙️</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      Dir. de Procesos Académicos<br>
+      Javier Piñeiro · Director Escuela
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- PÁGINA 1: CERTIFICADO -->
+    <div class="page active" id="p1">
+      <div class="page-header">
+        <h2>Etapa 1 — Lectura de Certificado Académico</h2>
+        <p>Sube el certificado de notas del estudiante. La IA extraerá los datos automáticamente.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="step-num">1</span> Cargar certificado académico (PDF)</div>
+        <div class="upload-zone" id="certZone" onclick="document.getElementById('certFile').click()"
+          ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')"
+          ondrop="event.preventDefault();this.classList.remove('drag');handleDrop(event,'cert')">
+          <span class="ico-big">📎</span>
+          <p>Arrastra el PDF aquí o haz clic para seleccionar</p>
+          <small>Certificado de notas con o sin OCR · PDF hasta 20MB</small>
+        </div>
+        <input type="file" id="certFile" accept=".pdf" style="display:none" onchange="procesarCertificado(this.files[0])">
+        <div id="certMsg" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card" id="cardDatos" style="display:none">
+        <div class="card-title"><span class="step-num">2</span> Datos extraídos — verifica y ajusta si es necesario</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Nombre del estudiante</label>
+            <input type="text" id="f_nombre" placeholder="Nombre completo">
+          </div>
+          <div class="form-group">
+            <label>RUT</label>
+            <input type="text" id="f_rut" placeholder="12.345.678-9">
+          </div>
+          <div class="form-group">
+            <label>Carrera de origen</label>
+            <input type="text" id="f_carrera" placeholder="Ej: Psicología">
+          </div>
+          <div class="form-group">
+            <label>Institución de origen</label>
+            <input type="text" id="f_institucion" placeholder="Ej: Universidad de Chile">
+          </div>
+          <div class="form-group">
+            <label>Plan UNIACC</label>
+            <select id="f_plan">
+              <option value="PSIC2601">Plan Regular 2026</option>
+              <option value="ADV2601">Plan Advance 2026</option>
+              <option value="PSIC2501">Plan Regular 2025</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Tipo de proceso</label>
+            <select id="f_tipo">
+              <option value="CV">CV — Convalidación</option>
+              <option value="HO">HO — Homologación</option>
+              <option value="CR">CR — Conocimientos Relevantes</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="cardAsig" style="display:none">
+        <div class="card-title"><span class="step-num">3</span> Asignaturas extraídas — revisa y edita</div>
+        <div id="alertHistorico" style="display:none"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th style="width:36px">N°</th>
+              <th>Nombre asignatura</th>
+              <th style="width:90px">Código</th>
+              <th style="width:80px">Sem/Año</th>
+              <th style="width:60px">Nota</th>
+              <th style="width:90px">Estado</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="tbodyAsig"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button class="btn btn-sm" onclick="addAsigRow()">➕ Agregar fila</button>
+          <button class="btn btn-primary" onclick="goPage('p2')">Continuar a Etapa 2 →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA 2: CONTRASTE -->
+    <div class="page" id="p2">
+      <div class="page-header">
+        <h2>Etapa 2 — Contraste con Programas UNIACC</h2>
+        <p>El sistema leerá los programas desde tu carpeta local y los comparará con las asignaturas del estudiante.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="step-num">4</span> Carpeta de programas de la universidad de origen</div>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:10px">Ingresa la ruta completa a la carpeta donde están los PDFs de los programas del estudiante.</p>
+        <div class="carpeta-row">
+          <div class="form-group">
+            <label>Ruta a carpeta de programas</label>
+            <input type="text" id="rutaCarpeta" placeholder="Ej: /Users/javier/Desktop/programas_estudiante o C:\programas">
+          </div>
+          <button class="btn" onclick="explorarCarpeta()">📂 Verificar carpeta</button>
+        </div>
+        <div id="carpetaMsg" style="margin-top:10px"></div>
+        <div class="folder-files" id="folderFiles"></div>
+        <div style="margin-top:12px;font-size:12px;color:var(--gray-text)">
+          💡 Si el estudiante no tiene programas disponibles, el sistema igualmente hará una estimación basada en el nombre de la asignatura (menor confianza).
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title"><span class="step-num">5</span> Ejecutar contraste</div>
+        <div id="histAlert" style="display:none;margin-bottom:12px"></div>
+        <div id="contrasteMsg" style="margin-bottom:10px"></div>
+        <div id="progressList" class="progress-list" style="display:none"></div>
+        <div id="contrasteTable" style="display:none">
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>Asignatura origen</th>
+                <th style="width:50px">Nota</th>
+                <th>Asignatura UNIACC equivalente</th>
+                <th style="width:90px">Código</th>
+                <th style="width:90px">Coincidencia</th>
+                <th style="width:80px">Fuente</th>
+                <th style="width:100px">Resultado</th>
+              </tr></thead>
+              <tbody id="tbodyContraste"></tbody>
+            </table>
+          </div>
+          <div class="actions">
+            <button class="btn btn-success" onclick="generarActa()">📄 Generar acta de validación</button>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="btnContrastar" onclick="ejecutarContraste()">🔍 Iniciar contraste con IA</button>
+      </div>
+    </div>
+
+    <!-- PÁGINA 3: ACTA -->
+    <div class="page" id="p3">
+      <div class="page-header">
+        <h2>Acta de Validación de Estudios</h2>
+        <p>Vista previa del acta. Usa el botón de impresión para obtener el documento final.</p>
+      </div>
+      <div id="actaVacia" class="empty-state">
+        <span class="ico">📋</span>
+        Completa las etapas 1 y 2 para generar el acta
+      </div>
+      <div id="actaContenido" style="display:none">
+        <div class="actions" style="margin-bottom:16px">
+          <button class="btn btn-primary" onclick="window.print()">🖨 Imprimir acta</button>
+          <button class="btn btn-success" onclick="guardarHistorico()">💾 Guardar en histórico</button>
+        </div>
+        <div class="acta-container">
+          <div id="actaHtml"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PÁGINA 4: HISTÓRICO -->
+    <div class="page" id="p4">
+      <div class="page-header">
+        <h2>Histórico de Convalidaciones</h2>
+        <p>Registro de todos los procesos anteriores y base de equivalencias por institución.</p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="n" id="hN1">0</div><div class="l">Procesos registrados</div></div>
+        <div class="stat-card"><div class="n" id="hN2">0</div><div class="l">Asignaturas convalidadas</div></div>
+        <div class="stat-card"><div class="n" id="hN3">0</div><div class="l">Instituciones distintas</div></div>
+        <div class="stat-card"><div class="n" id="hN4">0</div><div class="l">Equivalencias registradas</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Procesos realizados</div>
+        <div id="histTabla"><div class="empty-state"><span class="ico">🗂</span> Sin registros aún</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">🔗 Base de equivalencias por institución</div>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:12px">Asignaturas ya convalidadas: al llegar un nuevo estudiante de la misma institución, se aplicarán automáticamente.</p>
+        <div id="equivTabla"><div class="empty-state"><span class="ico">📚</span> Sin equivalencias registradas</div></div>
+      </div>
+    </div>
+
+    <!-- PÁGINA 5: CONFIGURACIÓN -->
+    <div class="page" id="p5">
+      <div class="page-header">
+        <h2>Configuración</h2>
+        <p>Proveedor de IA, API Keys y parámetros del sistema.</p>
+      </div>
+
+      <!-- SELECTOR DE PROVEEDOR -->
+      <div class="card">
+        <div class="card-title">🤖 Proveedor de Inteligencia Artificial</div>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:14px">Elige qué IA usará el sistema para leer certificados y contrastar programas.</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+          <div class="proveedor-card" id="card-anthropic" onclick="selectProveedor('anthropic')">
+            <div class="prov-logo" style="background:#E6F1FB;color:#042C53">ANT</div>
+            <div class="prov-name">Anthropic Claude</div>
+            <div class="prov-desc">Mayor precisión con PDFs · Recomendado</div>
+            <div class="prov-precio">~$0.003 / 1K tokens</div>
+          </div>
+          <div class="proveedor-card" id="card-openai" onclick="selectProveedor('openai')">
+            <div class="prov-logo" style="background:#EAF3DE;color:#173404">GPT</div>
+            <div class="prov-name">OpenAI GPT-4o</div>
+            <div class="prov-desc">Muy buena calidad · Sin soporte nativo PDF</div>
+            <div class="prov-precio">~$0.005 / 1K tokens</div>
+          </div>
+          <div class="proveedor-card" id="card-gemini" onclick="selectProveedor('gemini')">
+            <div class="prov-logo" style="background:#FAEEDA;color:#412402">GEM</div>
+            <div class="prov-name">Google Gemini</div>
+            <div class="prov-desc">Capa gratuita disponible · Soporta PDFs</div>
+            <div class="prov-precio">Gratis hasta límite diario</div>
+          </div>
+        </div>
+        <div id="proveedorSeleccionado" style="font-size:12px;color:var(--gray-text)"></div>
+      </div>
+
+      <!-- API KEYS -->
+      <div class="card">
+        <div class="card-title">🔑 API Keys</div>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:14px">Ingresa la API Key del proveedor que uses. Se guardan en <code>data/config.json</code> en tu computador.</p>
+
+        <div id="key-anthropic" class="key-section">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:500">Anthropic (Claude)</span>
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" style="font-size:11px;color:var(--blue-mid)">→ Obtener Key</a>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="key_anthropic" placeholder="sk-ant-api03-..." style="flex:1">
+            <span id="status_anthropic" style="font-size:12px;align-self:center;color:var(--gray-text)"></span>
+          </div>
+        </div>
+
+        <div id="key-openai" class="key-section" style="margin-top:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:500">OpenAI (GPT-4o)</span>
+            <a href="https://platform.openai.com/api-keys" target="_blank" style="font-size:11px;color:var(--blue-mid)">→ Obtener Key</a>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="key_openai" placeholder="sk-proj-..." style="flex:1">
+            <span id="status_openai" style="font-size:12px;align-self:center;color:var(--gray-text)"></span>
+          </div>
+        </div>
+
+        <div id="key-gemini" class="key-section" style="margin-top:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:13px;font-weight:500">Google Gemini</span>
+            <a href="https://aistudio.google.com/app/apikey" target="_blank" style="font-size:11px;color:var(--blue-mid)">→ Obtener Key (gratis)</a>
+          </div>
+          <div style="display:flex;gap:8px">
+            <input type="password" id="key_gemini" placeholder="AIzaSy..." style="flex:1">
+            <span id="status_gemini" style="font-size:12px;align-self:center;color:var(--gray-text)"></span>
+          </div>
+        </div>
+
+        <div class="actions" style="margin-top:16px">
+          <button class="btn btn-primary" onclick="guardarConfig()">💾 Guardar configuración</button>
+          <button class="btn" onclick="testConexion()">🔌 Probar conexión</button>
+        </div>
+        <div id="configMsg" style="margin-top:10px"></div>
+      </div>
+
+      <!-- PARÁMETROS -->
+      <div class="card">
+        <div class="card-title">📊 Parámetros de convalidación</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Porcentaje mínimo de coincidencia</label>
+            <input type="number" id="pctMin" value="70" min="50" max="100">
+          </div>
+          <div class="form-group">
+            <label>Nota mínima de aprobación</label>
+            <input type="number" id="notaMin" value="4.5" min="1" max="7" step="0.5">
+          </div>
+        </div>
+      </div>
+
+      <!-- CARPETA UNIACC -->
+      <div class="card">
+        <div class="card-title">📁 Carpeta de programas UNIACC (base fija)</div>
+        <p style="font-size:12px;color:var(--gray-text);margin-bottom:10px">Ruta a la carpeta con los 50 programas de asignaturas UNIACC. Se usará como referencia en todos los procesos.</p>
+        <div class="carpeta-row">
+          <div class="form-group">
+            <label>Ruta carpeta programas UNIACC</label>
+            <input type="text" id="rutaUniacc" placeholder="Ej: /Users/javier/UNIACC/programas">
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+const state = {
+  asignaturas: [],
+  contrastes: [],
+  carpeta: '',
+  config: { pctMin: 70, notaMin: 4.5, rutaUniacc: '' }
+};
+
+function goPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx = { p1:0, p2:1, p3:2, p4:3, p5:4 }[id];
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+}
+
+async function procesarCertificado(file) {
+  if (!file) return;
+  const zone = document.getElementById('certZone');
+  zone.innerHTML = `<span class="ico-big">✅</span><p>${file.name}</p><small>${(file.size/1024).toFixed(0)} KB</small>`;
+  document.getElementById('certMsg').innerHTML = `<div class="alert alert-info"><div class="spinner"></div> Procesando con IA (extrayendo datos y asignaturas)...</div>`;
+
+  const fd = new FormData();
+  fd.append('archivo', file);
+  try {
+    const res = await fetch('/api/extraer_certificado', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    const est = data.estudiante || {};
+    document.getElementById('f_nombre').value = est.nombre || '';
+    document.getElementById('f_rut').value = est.rut || '';
+    document.getElementById('f_carrera').value = est.carrera || '';
+    document.getElementById('f_institucion').value = est.institucion || '';
+
+    state.asignaturas = (data.asignaturas || []).map((a, i) => ({ ...a, id: i }));
+    document.getElementById('cardDatos').style.display = 'block';
+    document.getElementById('cardAsig').style.display = 'block';
+    renderAsigTabla();
+    document.getElementById('certMsg').innerHTML = `<div class="alert alert-success">✅ ${state.asignaturas.length} asignaturas extraídas. Datos del estudiante completados automáticamente.</div>`;
+    await verificarHistoricoInst(est.institucion);
+  } catch (e) {
+    document.getElementById('certMsg').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+async function verificarHistoricoInst(inst) {
+  if (!inst) return;
+  const res = await fetch('/api/equivalencias');
+  const equiv = await res.json();
+  if (equiv[inst]) {
+    document.getElementById('alertHistorico').style.display = 'block';
+    document.getElementById('alertHistorico').innerHTML = `<div class="alert alert-info">💡 Se encontraron <strong>${equiv[inst].length}</strong> equivalencias previas registradas para <strong>${inst}</strong>. Se aplicarán automáticamente en el contraste.</div>`;
+    document.getElementById('histAlert').style.display = 'block';
+    document.getElementById('histAlert').innerHTML = `<div class="alert alert-info">🗂 <strong>${equiv[inst].length}</strong> asignaturas tienen equivalencias del histórico para ${inst}. El contraste usará esos registros primero.</div>`;
+  }
+}
+
+function renderAsigTabla() {
+  const tbody = document.getElementById('tbodyAsig');
+  tbody.innerHTML = '';
+  state.asignaturas.forEach((a, i) => {
+    const nota = parseFloat(a.nota) || 0;
+    const ok = nota >= parseFloat(document.getElementById('notaMin')?.value || 4.5);
+    tbody.innerHTML += `<tr id="row${i}">
+      <td style="color:var(--gray-text)">${i+1}</td>
+      <td><input class="editable" value="${a.nombre||''}" onchange="state.asignaturas[${i}].nombre=this.value"></td>
+      <td><input class="editable" value="${a.codigo||''}" onchange="state.asignaturas[${i}].codigo=this.value"></td>
+      <td><input class="editable" value="${a.semestre||''}" onchange="state.asignaturas[${i}].semestre=this.value"></td>
+      <td><input class="nota-input" type="number" min="1" max="7" step="0.1" value="${nota||''}" onchange="state.asignaturas[${i}].nota=parseFloat(this.value);actualizarBadge(${i},parseFloat(this.value))"></td>
+      <td><span class="badge ${ok?'badge-ok':'badge-fail'}" id="badge${i}">${ok?'Aprueba':'No aprueba'}</span></td>
+      <td><button class="btn btn-sm btn-danger" onclick="eliminarFila(${i})">✕</button></td>
+    </tr>`;
+  });
+}
+
+function actualizarBadge(i, nota) {
+  const ok = nota >= parseFloat(document.getElementById('notaMin')?.value || 4.5);
+  const b = document.getElementById('badge'+i);
+  if (b) { b.className = `badge ${ok?'badge-ok':'badge-fail'}`; b.textContent = ok?'Aprueba':'No aprueba'; }
+}
+
+function eliminarFila(i) {
+  state.asignaturas.splice(i, 1);
+  renderAsigTabla();
+}
+
+function addAsigRow() {
+  state.asignaturas.push({ nombre:'', codigo:'', semestre:'', nota:0 });
+  renderAsigTabla();
+  document.getElementById('tbodyAsig').lastElementChild?.querySelector('.editable')?.focus();
+}
+
+async function explorarCarpeta() {
+  const ruta = document.getElementById('rutaCarpeta').value.trim();
+  if (!ruta) return;
+  state.carpeta = ruta;
+  const msg = document.getElementById('carpetaMsg');
+  msg.innerHTML = `<div class="alert alert-info"><div class="spinner"></div> Verificando carpeta...</div>`;
+  try {
+    const res = await fetch('/api/carpeta', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ ruta }) });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    msg.innerHTML = `<div class="alert alert-success">✅ Carpeta encontrada: <strong>${data.total}</strong> archivos PDF</div>`;
+    const ff = document.getElementById('folderFiles');
+    ff.innerHTML = data.archivos.map(f => `<span class="file-pill">📄 ${f}</span>`).join('');
+  } catch (e) {
+    msg.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+async function ejecutarContraste() {
+  const elegibles = state.asignaturas.filter(a => parseFloat(a.nota) >= parseFloat(document.getElementById('notaMin')?.value || 4.5));
+  if (!elegibles.length) {
+    document.getElementById('contrasteMsg').innerHTML = `<div class="alert alert-error">❌ Ninguna asignatura tiene nota suficiente.</div>`;
+    return;
+  }
+  const inst = document.getElementById('f_institucion').value;
+  const carpeta = document.getElementById('rutaCarpeta').value.trim() || state.carpeta;
+  document.getElementById('btnContrastar').style.display = 'none';
+  document.getElementById('progressList').style.display = 'flex';
+  document.getElementById('progressList').innerHTML = '';
+  document.getElementById('contrasteMsg').innerHTML = `<div class="alert alert-info"><div class="spinner"></div> Procesando ${elegibles.length} asignaturas...</div>`;
+
+  const resultados = [];
+  for (const a of elegibles) {
+    const li = document.createElement('div');
+    li.className = 'progress-item';
+    li.innerHTML = `<div class="spinner"></div><span class="asig-name">${a.nombre}</span><span style="font-size:12px;color:var(--gray-text)">analizando...</span>`;
+    document.getElementById('progressList').appendChild(li);
+
+    try {
+      const res = await fetch('/api/contrastar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asignatura: a, carpeta_programas: carpeta, usar_historico: true, institucion: inst })
+      });
+      const r = await res.json();
+      resultados.push(r);
+      const ok = r.pct >= 70;
+      li.innerHTML = `<span style="font-size:16px">${ok?'✅':'⚠️'}</span><span class="asig-name">${a.nombre}</span><span style="font-size:12px;color:${ok?'var(--green-text)':'var(--amber-text)'}">${r.pct}% → ${r.nombreUniacc||'Sin equivalencia'}</span>`;
+    } catch(e) {
+      li.innerHTML = `<span>❌</span><span class="asig-name">${a.nombre}</span><span style="font-size:12px;color:var(--red-text)">Error</span>`;
+    }
+  }
+
+  state.contrastes = resultados;
+  const aprobadas = resultados.filter(r => r.pct >= 70).length;
+  document.getElementById('contrasteMsg').innerHTML = `<div class="alert alert-success">✅ Contraste completado: <strong>${aprobadas}</strong> de ${resultados.length} asignaturas con coincidencia ≥70%.</div>`;
+  renderContrasteTabla(resultados);
+}
+
+function renderContrasteTabla(rows) {
+  const tbody = document.getElementById('tbodyContraste');
+  tbody.innerHTML = '';
+  rows.forEach(r => {
+    const pct = r.pct || 0;
+    const aprueba = pct >= 70 && parseFloat(r.nota) >= 4.5;
+    const pctClass = pct >= 70 ? 'pct-ok' : pct >= 50 ? 'pct-warn' : 'pct-fail';
+    const fuente = r.fuente === 'historico' ? `<span class="badge badge-hist">Histórico</span>` :
+                   r.fuente === 'programa_pdf' ? `<span class="badge badge-pdf">Programa PDF</span>` :
+                   `<span class="badge badge-name">Por nombre</span>`;
+    tbody.innerHTML += `<tr>
+      <td><strong>${r.nombre}</strong><br><span style="font-size:11px;color:var(--gray-text)">${r.codigo||''}</span></td>
+      <td style="text-align:center;font-weight:600">${r.nota}</td>
+      <td>${r.nombreUniacc||'—'}<br><span style="font-size:10px;color:var(--gray-text)">${r.justificacion||''}</span></td>
+      <td style="font-size:12px;color:var(--gray-text)">${r.codigoUniacc||'—'}</td>
+      <td>
+        <div class="pct-bar ${pctClass}">
+          <div class="pct-track"><div class="pct-fill" style="width:${Math.min(pct,100)}%"></div></div>
+          <span style="font-size:12px;font-weight:500">${pct}%</span>
+        </div>
+      </td>
+      <td>${fuente}</td>
+      <td><span class="badge ${aprueba?'badge-cv':'badge-fail'}">${aprueba?'Convalidada':'No aplica'}</span></td>
+    </tr>`;
+  });
+  document.getElementById('contrasteTable').style.display = 'block';
+}
+
+function generarActa() {
+  const convalidadas = state.contrastes.filter(r => r.pct >= 70 && parseFloat(r.nota) >= 4.5);
+  const hoy = new Date();
+  const dd = hoy.getDate().toString().padStart(2,'0');
+  const mm = (hoy.getMonth()+1).toString().padStart(2,'0');
+  const aaaa = hoy.getFullYear();
+  const tipo = document.getElementById('f_tipo').value;
+  const tipoLabel = {CV:'Convalidación', HO:'Homologación', CR:'Conocimientos Relevantes'}[tipo];
+
+  const rowsOrigen = state.asignaturas.map((a, i) =>
+    `<tr><td style="text-align:center">${i+1}</td><td>${a.nombre}</td><td>${a.codigo||'—'}</td><td>${a.semestre||'—'}</td><td style="text-align:center">${a.nota}</td></tr>`
+  ).join('');
+
+  const rowsUniacc = convalidadas.map((r, i) =>
+    `<tr><td style="text-align:center">${i+1}</td><td>${r.nombreUniacc}</td><td>${r.codigoUniacc}</td><td style="text-align:center">${tipo}</td></tr>`
+  ).join('');
+
+  document.getElementById('actaHtml').innerHTML = `
+    <div class="acta-header">
+      <h2>ACTA DE VALIDACIÓN DE ESTUDIOS · ${aaaa}</h2>
+      <p>DIRECCIÓN DE PROCESOS ACADÉMICOS Y TITULACIÓN · UNIACC</p>
+    </div>
+    <div class="acta-datos">
+      <div><span>NOMBRE DEL ESTUDIANTE:</span> <strong>${document.getElementById('f_nombre').value||'—'}</strong></div>
+      <div><span>RUT:</span> ${document.getElementById('f_rut').value||'—'} &nbsp;&nbsp; <span>TIPO:</span> <strong>${tipo} — ${tipoLabel}</strong></div>
+      <div><span>CARRERA DE ORIGEN:</span> ${document.getElementById('f_carrera').value||'—'}</div>
+      <div><span>INSTITUCIÓN DE ORIGEN:</span> ${document.getElementById('f_institucion').value||'—'}</div>
+      <div><span>CARRERA UNIACC:</span> Psicología</div>
+      <div><span>PLAN UNIACC:</span> ${document.getElementById('f_plan').value}</div>
+    </div>
+    <div style="font-weight:600;font-size:10px;margin-bottom:6px;color:#042C53">ANÁLISIS DE ASIGNATURAS</div>
+    <div class="acta-tables">
+      <div>
+        <div style="background:#E6F1FB;color:#042C53;font-size:9px;font-weight:600;padding:4px 6px;border:1px solid #B5D4F4">ASIGNATURAS CARRERA DE ORIGEN</div>
+        <table><thead><tr><th>N°</th><th>Nombre</th><th>Código</th><th>Sem</th><th>Nota</th></tr></thead><tbody>${rowsOrigen}</tbody></table>
+      </div>
+      <div>
+        <div style="background:#E6F1FB;color:#042C53;font-size:9px;font-weight:600;padding:4px 6px;border:1px solid #B5D4F4">ASIGNATURAS UNIACC</div>
+        <table><thead><tr><th>N°</th><th>Nombre</th><th>Código</th><th>Estado</th></tr></thead><tbody>${rowsUniacc}</tbody></table>
+      </div>
+    </div>
+    <div class="acta-firma">
+      <div>
+        <div class="firma-line"></div>
+        <div style="font-size:10px">Javier Piñeiro · Director de Escuela de Psicología</div>
+        <div style="font-size:9px;color:#5F5E5A">NOMBRE Y FIRMA DIRECTOR(A) DE ESCUELA</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:600;margin-bottom:4px">OBSERVACIONES:</div>
+        <div style="font-size:10px">Convalidación de asignaturas según revisión de programas académicos. Coincidencia ≥70% verificada por sistema de contraste curricular.</div>
+        <div style="margin-top:8px;font-size:10px"><span style="color:#5F5E5A">DÍA:</span> ${dd} &nbsp; <span style="color:#5F5E5A">MES:</span> ${mm} &nbsp; <span style="color:#5F5E5A">AÑO:</span> ${aaaa}</div>
+        <div style="margin-top:4px;font-size:10px"><span style="color:#5F5E5A">Asignaturas convalidadas:</span> <strong>${convalidadas.length}</strong> de ${state.asignaturas.length}</div>
+      </div>
+    </div>
+    <div class="acta-consideraciones">
+      CONSIDERACIONES GENERALES: 1. La solicitud en tiempo y forma de la actualización del avance de la malla es responsabilidad de la Escuela a la que ingresa el (la) estudiante.
+      2. La vigencia de esta acta está asociada al plan de estudios para la cual fue conferida.
+      3. Para cambios de plan, jornada o modalidad dentro de una misma carrera, deben homologarse todas las asignaturas quedando con la calificación y situación original.
+    </div>`;
+
+  document.getElementById('actaVacia').style.display = 'none';
+  document.getElementById('actaContenido').style.display = 'block';
+  goPage('p3');
+}
+
+async function guardarHistorico() {
+  const convalidadas = state.contrastes.filter(r => r.pct >= 70 && parseFloat(r.nota) >= 4.5).map(r => ({
+    origen: r.nombre, codigoOrigen: r.codigo||'',
+    uniacc: r.nombreUniacc, codigoUniacc: r.codigoUniacc,
+    nota: r.nota, pct: r.pct
+  }));
+  const payload = {
+    estudiante: document.getElementById('f_nombre').value,
+    rut: document.getElementById('f_rut').value,
+    institucion: document.getElementById('f_institucion').value,
+    carreraOrigen: document.getElementById('f_carrera').value,
+    plan: document.getElementById('f_plan').value,
+    convalidadas
+  };
+  const res = await fetch('/api/historico', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  const data = await res.json();
+  if (data.ok) alert(`✅ Guardado en el histórico. Total de procesos: ${data.total}`);
+  actualizarBadgeHist();
+}
+
+async function cargarHistorico() {
+  const res = await fetch('/api/historico');
+  const hist = await res.json();
+  const eqRes = await fetch('/api/equivalencias');
+  const equiv = await eqRes.json();
+
+  document.getElementById('hN1').textContent = hist.length;
+  document.getElementById('hN2').textContent = hist.reduce((s,h) => s + (h.convalidadas?.length||0), 0);
+  document.getElementById('hN3').textContent = new Set(hist.map(h => h.institucion)).size;
+  document.getElementById('hN4').textContent = Object.values(equiv).reduce((s,v) => s + v.length, 0);
+
+  const tbody = document.getElementById('histTabla');
+  if (!hist.length) { tbody.innerHTML = '<div class="empty-state"><span class="ico">🗂</span> Sin registros</div>'; }
+  else {
+    tbody.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Fecha</th><th>Estudiante</th><th>RUT</th><th>Institución</th><th>Conv.</th><th></th></tr></thead>
+      <tbody>${hist.map((h,i) => {
+        const f = new Date(h.fecha);
+        const fd = `${f.getDate().toString().padStart(2,'0')}/${(f.getMonth()+1).toString().padStart(2,'0')}/${f.getFullYear()}`;
+        return `<tr><td>${fd}</td><td>${h.estudiante}</td><td style="font-size:12px">${h.rut||'—'}</td><td>${h.institucion}</td>
+          <td style="text-align:center"><span class="badge badge-ok">${h.convalidadas?.length||0}</span></td>
+          <td><button class="btn btn-sm btn-danger" onclick="eliminarRegistro(${i})">✕</button></td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+  }
+
+  const eDiv = document.getElementById('equivTabla');
+  if (!Object.keys(equiv).length) { eDiv.innerHTML = '<div class="empty-state"><span class="ico">📚</span> Sin equivalencias</div>'; }
+  else {
+    eDiv.innerHTML = Object.entries(equiv).map(([inst, asigs]) => `
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:var(--blue-dark)">${inst} <span style="font-size:11px;font-weight:400;color:var(--gray-text)">(${asigs.length} equivalencias)</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Asignatura origen</th><th>Asignatura UNIACC</th><th>Código UNIACC</th><th>Coincidencia</th></tr></thead>
+          <tbody>${asigs.map(a => `<tr><td>${a.origen}</td><td>${a.uniacc}</td><td>${a.codigoUniacc}</td>
+            <td><span class="badge ${a.pct>=70?'badge-ok':'badge-warn'}">${a.pct}%</span></td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>`).join('');
+  }
+}
+
+async function eliminarRegistro(i) {
+  if (!confirm('¿Eliminar este registro del histórico?')) return;
+  await fetch(`/api/historico/${i}`, { method: 'DELETE' });
+  cargarHistorico();
+}
+
+async function actualizarBadgeHist() {
+  const res = await fetch('/api/historico');
+  const hist = await res.json();
+  document.getElementById('badgeHist').textContent = hist.length;
+}
+
+function guardarConfig() {
+  const payload = {
+    proveedor: window._proveedorActual || 'anthropic',
+    pct_min: parseFloat(document.getElementById('pctMin').value) || 70,
+    nota_min: parseFloat(document.getElementById('notaMin').value) || 4.5,
+    ruta_uniacc: document.getElementById('rutaUniacc').value || '',
+  };
+  const kA = document.getElementById('key_anthropic').value;
+  const kO = document.getElementById('key_openai').value;
+  const kG = document.getElementById('key_gemini').value;
+  if (kA) payload.anthropic_key = kA;
+  if (kO) payload.openai_key = kO;
+  if (kG) payload.gemini_key = kG;
+
+  fetch('/api/config', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+    .then(r => r.json())
+    .then(() => {
+      document.getElementById('configMsg').innerHTML = '<div class="alert alert-success">✅ Configuración guardada correctamente.</div>';
+      cargarConfigUI();
+    });
+}
+
+async function testConexion() {
+  document.getElementById('configMsg').innerHTML = '<div class="alert alert-info"><div class="spinner"></div> Probando conexión...</div>';
+  try {
+    const res = await fetch('/api/test_conexion', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('configMsg').innerHTML = `<div class="alert alert-success">✅ Conexión exitosa con ${window._proveedorActual}. Respuesta: "${data.respuesta}"</div>`;
+    } else {
+      document.getElementById('configMsg').innerHTML = `<div class="alert alert-error">❌ Error: ${data.error}</div>`;
+    }
+  } catch(e) {
+    document.getElementById('configMsg').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+function selectProveedor(p) {
+  window._proveedorActual = p;
+  document.querySelectorAll('.proveedor-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('card-' + p).classList.add('selected');
+  const labels = { anthropic: 'Anthropic Claude seleccionado', openai: 'OpenAI GPT-4o seleccionado', gemini: 'Google Gemini seleccionado' };
+  document.getElementById('proveedorSeleccionado').textContent = '✓ ' + labels[p];
+}
+
+async function cargarConfigUI() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    window._proveedorActual = cfg.proveedor || 'anthropic';
+    selectProveedor(window._proveedorActual);
+    if (cfg.pct_min) document.getElementById('pctMin').value = cfg.pct_min;
+    if (cfg.nota_min) document.getElementById('notaMin').value = cfg.nota_min;
+    if (cfg.ruta_uniacc) document.getElementById('rutaUniacc').value = cfg.ruta_uniacc;
+    // Mostrar estado de keys (no el valor real)
+    const ids = {anthropic: 'status_anthropic', openai: 'status_openai', gemini: 'status_gemini'};
+    for (const [prov, elId] of Object.entries(ids)) {
+      const el = document.getElementById(elId);
+      if (el) el.textContent = cfg[prov + '_key_set'] ? '✓ configurada' : 'no configurada';
+    }
+  } catch(e) {}
+}
+
+function handleDrop(e, tipo) {
+  const file = e.dataTransfer.files[0];
+  if (file && tipo === 'cert') procesarCertificado(file);
+}
+
+actualizarBadgeHist();
+window._proveedorActual = 'anthropic';
+cargarConfigUI();
+</script>
+</body>
+</html>
